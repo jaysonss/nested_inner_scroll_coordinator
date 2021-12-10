@@ -1,3 +1,4 @@
-## 0.0.1
+## 1.0.0
+Support nested inner scroll
+Support multi inner scroll views
 
-* TODO: Describe initial release.
