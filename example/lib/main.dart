@@ -30,6 +30,10 @@ class NestedInnerScrollDemo extends StatefulWidget {
 class _NestedInnerScrollDemoState extends State<NestedInnerScrollDemo> {
   late NestedInnerScrollCoordinator _coordinator;
 
+  final Key _firstInnerKey = const ValueKey("first");
+
+  final Key _secondInnerKey = const ValueKey("second");
+
   @override
   void initState() {
     super.initState();
@@ -42,12 +46,27 @@ class _NestedInnerScrollDemoState extends State<NestedInnerScrollDemo> {
       appBar: AppBar(
         title: const Text("NestedInnerScrollDemo"),
       ),
+      floatingActionButton: GestureDetector(
+        onTap: _jumpFirstScroll,
+        onDoubleTap: _jumpSecondScroll,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(30),
+            color: Colors.white,
+          ),
+          width: 60,
+          height: 60,
+          child: const Center(
+            child: Text("jumpTo"),
+          ),
+        ),
+      ),
       body: CustomScrollView(
         controller: _coordinator.outerController,
         slivers: [
           SliverToBoxAdapter(
             child: Container(
-              height: 400,
+              height: 200,
               color: Colors.red,
               child: const Center(
                 child: Text(
@@ -61,12 +80,13 @@ class _NestedInnerScrollDemoState extends State<NestedInnerScrollDemo> {
             child: SizedBox(
               height: 400,
               child: NestedInnerScrollChild(
+                scrollKey: _firstInnerKey,
                 child: ListView.separated(
                   controller: _coordinator.innerController,
                   itemBuilder: (_, idx) => Container(
                     height: 20,
                     child: Text(
-                      "item id: ${idx + 1}",
+                      "first scroll item id: ${idx + 1}",
                     ),
                     padding: const EdgeInsets.only(left: 10),
                     alignment: Alignment.centerLeft,
@@ -84,7 +104,7 @@ class _NestedInnerScrollDemoState extends State<NestedInnerScrollDemo> {
           ),
           SliverToBoxAdapter(
             child: Container(
-              height: 800,
+              height: 300,
               color: Colors.green,
               child: const Center(
                 child: Text(
@@ -94,8 +114,42 @@ class _NestedInnerScrollDemoState extends State<NestedInnerScrollDemo> {
               ),
             ),
           ),
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 400,
+              child: NestedInnerScrollChild(
+                scrollKey: _secondInnerKey,
+                coordinator: _coordinator,
+                child: ListView.separated(
+                  controller: _coordinator.innerController,
+                  itemBuilder: (_, idx) => Container(
+                    height: 20,
+                    child: Text(
+                      "second scroll item id: ${idx + 1}",
+                    ),
+                    padding: const EdgeInsets.only(left: 10),
+                    alignment: Alignment.centerLeft,
+                  ),
+                  separatorBuilder: (_, __) => const Divider(
+                    color: Color(0xff9b9b9b),
+                    height: 0.5,
+                    indent: 10,
+                  ),
+                  itemCount: 100,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  void _jumpFirstScroll() {
+    _coordinator.getInnerPosition(_firstInnerKey)?.jumpTo(30);
+  }
+
+  void _jumpSecondScroll() {
+    _coordinator.getInnerPosition(_secondInnerKey)?.jumpTo(100);
   }
 }

@@ -10,31 +10,40 @@ import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 
-class NestedInnerScrollChild extends StatelessWidget {
+class NestedInnerScrollChild extends StatefulWidget {
   final Widget child;
 
   final NestedInnerScrollCoordinator coordinator;
 
-  const NestedInnerScrollChild(
-      {Key? key, required this.coordinator, required this.child})
-      : super(key: key);
+  final Key scrollKey;
 
+  const NestedInnerScrollChild(
+      {Key? key,
+      required this.scrollKey,
+      required this.coordinator,
+      required this.child})
+      : super(key: key);
+  @override
+  _NestedInnerScrollChildState createState() => _NestedInnerScrollChildState();
+}
+
+class _NestedInnerScrollChildState extends State<NestedInnerScrollChild> {
   @override
   Widget build(BuildContext context) {
     return Listener(
-      child: child,
+      child: NotificationListener<ScrollEndNotification>(
+        child: widget.child,
+        onNotification: (end) {
+          widget.coordinator._innerTouchingKey = null;
+          return false;
+        },
+      ),
       onPointerDown: _startScrollInner,
-      onPointerCancel: _endInnerScroll,
-      onPointerUp: _endInnerScroll,
     );
   }
 
   void _startScrollInner(_) {
-    coordinator.innerTouching = true;
-  }
-
-  void _endInnerScroll(_) {
-    coordinator.innerTouching = false;
+    widget.coordinator._innerTouchingKey = widget.scrollKey;
   }
 }
 
@@ -105,6 +114,39 @@ class NestedInnerScrollCoordinator
     );
   }
 
+  //cache all inner scrollview
+  final Map<Key, _NestedScrollPosition> _innerScrollPositionMap = {};
+
+  ScrollPosition? getInnerPosition(Key key) {
+    return _innerScrollPositionMap[key];
+  }
+
+  void attachInnerScrollPosition(_NestedScrollPosition position) {
+    Key? scrollKey = _getInnerScrollViewKey(position);
+    if (scrollKey != null) {
+      //in case widget reuse cause multi keys point to same position
+      _innerScrollPositionMap.removeWhere((key, value) => value == position);
+      _innerScrollPositionMap[scrollKey] = position;
+    }
+  }
+
+  void detachInnerScrollPosition(_NestedScrollPosition position) {
+    Key? scrollKey = _getInnerScrollViewKey(position);
+    if (scrollKey != null) {
+      _innerScrollPositionMap.remove(scrollKey);
+    }
+  }
+
+  Key? _getInnerScrollViewKey(_NestedScrollPosition position) {
+    final context = position.context;
+    if (context is ScrollableState) {
+      NestedInnerScrollChild? innerScrollParentWidget = context.context
+          .findAncestorWidgetOfExactType<NestedInnerScrollChild>();
+      return innerScrollParentWidget?.scrollKey;
+    }
+    return null;
+  }
+
   ScrollController _parent;
 
   late NestedInnerScrollController _outerController;
@@ -113,11 +155,12 @@ class NestedInnerScrollCoordinator
   late NestedInnerScrollController _innerController;
   NestedInnerScrollController get innerController => _innerController;
 
-  bool innerTouching = false;
+  //key to get scrolling innerview
+  Key? _innerTouchingKey;
 
   //[HOOK]return true when 1. user touch 2. fling
   bool get innerScroll {
-    return innerTouching ||
+    return _innerTouchingKey != null ||
         (_innerPositions.isNotEmpty &&
             _innerPositions.firstWhereOrNull(
                     (element) => element.isScroll() == true) !=
@@ -133,6 +176,12 @@ class NestedInnerScrollCoordinator
   }
 
   Iterable<_NestedScrollPosition> get _innerPositions {
+    if (_innerTouchingKey != null &&
+        _innerScrollPositionMap[_innerTouchingKey] != null) {
+      return Iterable.generate(1, (index) {
+        return _innerScrollPositionMap[_innerTouchingKey]!;
+      });
+    }
     return _innerController.nestedPositions;
   }
 
@@ -321,6 +370,7 @@ class NestedInnerScrollCoordinator
 
   @mustCallSuper
   void dispose() {
+    _innerScrollPositionMap.clear();
     _currentDrag?.dispose();
     _currentDrag = null;
     _outerController.dispose();
@@ -358,10 +408,10 @@ class NestedInnerScrollController extends ScrollController {
   }
 
   //disable Notification pop up
-  void jumpWithNoNotification(double value) {
+  void justForcePixels(double value) {
     assert(nestedPositions.isNotEmpty);
     for (_NestedScrollPosition position in nestedPositions) {
-      position.jumpWithNoNotification(value);
+      position.justForcePixels(value);
     }
   }
 
@@ -369,8 +419,11 @@ class NestedInnerScrollController extends ScrollController {
   void attach(ScrollPosition position) {
     assert(position is _NestedScrollPosition);
     super.attach(position);
+    _NestedScrollPosition _nestedScrollPosition =
+        position as _NestedScrollPosition;
+    coordinator.attachInnerScrollPosition(_nestedScrollPosition);
     coordinator.updateParent();
-    coordinator.updateCanDrag(position as _NestedScrollPosition);
+    coordinator.updateCanDrag(_nestedScrollPosition);
     position.addListener(_scheduleUpdateShadow);
     _scheduleUpdateShadow();
   }
@@ -378,6 +431,7 @@ class NestedInnerScrollController extends ScrollController {
   @override
   void detach(ScrollPosition position) {
     assert(position is _NestedScrollPosition);
+    coordinator.detachInnerScrollPosition(position as _NestedScrollPosition);
     position.removeListener(_scheduleUpdateShadow);
     super.detach(position);
     _scheduleUpdateShadow();
@@ -394,9 +448,8 @@ class NestedInnerScrollController extends ScrollController {
     // });
   }
 
-  Iterable<_NestedScrollPosition> get nestedPositions sync* {
-    // TODO(vegorov): use instance method version of castFrom when it is available.
-    yield* Iterable.castFrom<ScrollPosition, _NestedScrollPosition>(positions);
+  Iterable<_NestedScrollPosition> get nestedPositions {
+    return Iterable.castFrom<ScrollPosition, _NestedScrollPosition>(positions);
   }
 }
 
@@ -638,7 +691,7 @@ class _NestedScrollPosition extends ScrollPosition
     }
   }
 
-  void jumpWithNoNotification(double value) {
+  void justForcePixels(double value) {
     if (pixels != value) {
       forcePixels(value);
     }
@@ -743,17 +796,16 @@ class _NestedOuterBallisticScrollActivity extends BallisticScrollActivity {
   bool applyMoveTo(double value) {
     if (coordinator.innerScroll) {
       ///[HOOK]if fling inner scrollview at it's edge, enable out scrollview's fling effect
-      bool bottomOverscroll = velocity > 0 &&
-          coordinator.innerController.position.pixels >=
-              coordinator.innerController.position.maxScrollExtent;
-      bool topOverScroll = velocity < 0 &&
-          coordinator.innerController.position.pixels <=
-              coordinator.innerController.position.minScrollExtent;
+      if (coordinator._innerPositions.length == 1) {
+        final p = coordinator._innerPositions.first;
+        bool bottomOverscroll = velocity > 0 && p.pixels >= p.maxScrollExtent;
+        bool topOverScroll = velocity < 0 && p.pixels <= p.minScrollExtent;
 
-      if (!bottomOverscroll && !topOverScroll) {
-        return false;
-      } else {
-        //enable out scrollview fling
+        if (!bottomOverscroll && !topOverScroll) {
+          return false;
+        } else {
+          //enable out scrollview fling
+        }
       }
     }
     bool done = false;

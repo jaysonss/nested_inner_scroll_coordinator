@@ -1,39 +1,37 @@
-<!-- 
-This README describes the package. If you publish this package to pub.dev,
-this README's contents appear on the landing page for your package.
+### Introduction
+Flutter Scrollable Widgets like ListView,GridView or powerful CustomScrollView can't nest inner scrollview.
+If Nested, inner scrollview will scroll dependently, that's not very good to user.
 
-For information about how to write a good package README, see the guide for
-[writing package pages](https://dart.dev/guides/libraries/writing-package-pages). 
+NestedScrollView give us another choice, but it's not very flexible. For example, We must provide "header+body" widgets.
+So I make nested_inner_scroll library inpired by NestedScrollView,this library has features:
 
-For general information about developing packages, see the Dart guide for
-[creating packages](https://dart.dev/guides/libraries/create-library-packages)
-and the Flutter guide for
-[developing packages and plugins](https://flutter.dev/developing-packages). 
--->
+1. inner scroll and outer scroll is independent, when we scroll one,other's position will not be affected.
+2. When inner scroll at it's edge, it can trigger out scroll view to scroll
+3. Support nested fling effect, it's smooth when fling innerview or outview
 
-TODO: Put a short description of the package here that helps potential users
-know whether this package might be useful for them.
 
-## Features
+### Usage
+1. new NestedInnerScrollCoordinator instance, it needs one ScrollController as parent
+2. give NestedInnerScrollCoordinator.outController to outview as ScrollController
+3. prepare Key instance for every innerview as scrollKey property
+4. give NestedInnerScrollCoordinator.innerController to innerView as ScrollController
+5. wrap every innerview with NestedInnerScrollChild widget
+that's all, then you can have nested inner scroll views
+you can check example project main.dart for more information
 
-TODO: List what your package can do. Maybe include images, gifs, or videos.
+### Other Tips
+1. If you want to scroll inner view, you need to do it by ScrollPosition
+`_coordinator.getInnerPosition(innerViewKey)?.jumpTo(0)`
 
-## Getting started
+2. If you want to have pull to refresh features, you can use 'pull_to_refresh_notification' library
 
-TODO: List prerequisites and provide or point to information on how to
-start using the package.
+3. Every inner scroll view should have fixed height
 
-## Usage
+### Issues
+If you have any problem in use, give issues to me but with template:
 
-TODO: Include short and useful examples for package users. Add longer examples
-to `/example` folder. 
+### description
 
-```dart
-const like = 'sample';
-```
+### minim code example
 
-## Additional information
-
-TODO: Tell users more about the package: where to find more information, how to 
-contribute to the package, how to file issues, what response they can expect 
-from the package authors, and more.
+### flutter doctor -v info

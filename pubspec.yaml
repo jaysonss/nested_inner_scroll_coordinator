@@ -1,13 +1,14 @@
 name: nested_inner_scroll
-description: A new Flutter package project.
+description: Nested inner scroll coordinator
 version: 0.0.1
-homepage:
+homepage: https://www.github.com/jaysonss
 
 environment:
   sdk: ">=2.12.0 <3.0.0"
   flutter: ">=1.17.0"
 
 dependencies:
+  collection: ^1.15.0
   flutter:
     sdk: flutter
 
