@@ -160,11 +160,10 @@ class NestedInnerScrollCoordinator
 
   //[HOOK]return true when 1. user touch 2. fling
   bool get innerScroll {
-    return _innerTouchingKey != null ||
-        (_innerPositions.isNotEmpty &&
-            _innerPositions.firstWhereOrNull(
+    return _innerPositions.isNotEmpty && (_innerTouchingKey != null ||
+        (_innerPositions.firstWhereOrNull(
                     (element) => element.isScroll() == true) !=
-                null);
+                null));
   }
 
   _NestedScrollPosition get _outerPosition {
