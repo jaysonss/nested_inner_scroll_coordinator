@@ -131,9 +131,11 @@ class NestedInnerScrollCoordinator
   }
 
   void detachInnerScrollPosition(_NestedScrollPosition position) {
-    Key? scrollKey = _getInnerScrollViewKey(position);
-    if (scrollKey != null) {
-      _innerScrollPositionMap.remove(scrollKey);
+    final removedKey = _innerScrollPositionMap.keys
+        .firstWhereOrNull((key) => _innerScrollPositionMap[key] == position);
+
+    if (removedKey != null) {
+      _innerScrollPositionMap.remove(removedKey);
     }
   }
 
@@ -160,10 +162,11 @@ class NestedInnerScrollCoordinator
 
   //[HOOK]return true when 1. user touch 2. fling
   bool get innerScroll {
-    return _innerPositions.isNotEmpty && (_innerTouchingKey != null ||
-        (_innerPositions.firstWhereOrNull(
+    return _innerTouchingKey != null ||
+        (_innerPositions.isNotEmpty &&
+            _innerPositions.firstWhereOrNull(
                     (element) => element.isScroll() == true) !=
-                null));
+                null);
   }
 
   _NestedScrollPosition get _outerPosition {
